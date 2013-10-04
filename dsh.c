@@ -129,7 +129,9 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 char* promptmsg() 
 {
     /* Modify this to include pid */
-	return "dsh$ ";
+    char* s[20];
+    sprintf(s, "dsh$ (pid: %d) ", (int) getpid());
+    return s;
 }
 
 int main() 
