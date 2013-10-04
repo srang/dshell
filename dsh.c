@@ -55,8 +55,7 @@ void spawn_job(job_t *j, bool fg)
 
 	for(p = j->first_process; p; p = p->next) {
 
-	  /* YOUR CODE HERE? */
-	  /* Builtin commands are already taken care earlier */
+		  /* Builtin commands are already taken care earlier */
 	  
 	  switch (pid = fork()) {
 
