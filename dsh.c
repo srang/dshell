@@ -103,10 +103,10 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
 	    /* check whether the cmd is a built in command
         */
-
         if (!strcmp(argv[0], "quit")) {
             /* Your code here */
             exit(EXIT_SUCCESS);
+            return true;
 	}
         else if (!strcmp("jobs", argv[0])) {
             /* Your code here */
@@ -129,7 +129,7 @@ char* promptmsg()
 {
     /* Modify this to include pid */
     char* s[20];
-    sprintf(s, "dsh$ (pid: %d) ", (int) getpid());
+    sprintf(s, "dsh-%d$ ", (int) getpid());
     return s;
 }
 
@@ -162,5 +162,37 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
+        while(j->next!=NULL){
+            while(j->first_process->next != NULL){
+                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
+                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
+                }else{
+                        spawn_job(j, !(j->bg));
+                }
+            }
+            if(j->first_process->next == NULL){
+                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
+                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
+                }else{
+                    spawn_job(j, !(j->bg));
+                }
+            }
+        }
+        if(j->next==NULL){
+            while(j->first_process->next != NULL){
+                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
+                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
+                }else{
+                    spawn_job(j, !(j->bg));
+                }
+            }
+            if(j->first_process->next == NULL){
+                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
+                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
+                }else{
+                    spawn_job(j, !(j->bg));
+                }
+            }
+        }
     }
 }
