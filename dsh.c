@@ -69,8 +69,7 @@ void spawn_job(job_t *j, bool fg)
           case 0: /* child process  */
             p->pid = getpid();
             new_child(j, p, fg);
-
-	    /* YOUR CODE HERE?  Child-side code for new process. */
+				execv(p->argv[0], p->argv[1]);
             perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
             break;    /* NOT REACHED */
