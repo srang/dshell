@@ -164,18 +164,31 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
+        
+        //give jobs in j gpids (not different from terminal right now)
+        job_t *i;
+        i = j;
+        while(i->next != NULL){
+            i->pgid = getpid();
+        }
+        if (i->next == NULL){
+            i->pgid = getpid();
+        }
         job_t* jobCheck;
         process_t* procCheck;
         jobCheck = j;
         while(jobCheck->next!=NULL){
+            //printf("jobs next not NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
+                //printf("proc next not NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                         spawn_job(jobCheck, !(jobCheck->bg));
                 }
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
+                //printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
@@ -183,14 +196,17 @@ int main()
             jobCheck = jobCheck->next;
         }
         if(jobCheck->next==NULL){
+            //printf("jobs next NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
+                //printf("proc next not NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
+                //printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
