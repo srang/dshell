@@ -127,7 +127,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
                 for(i = 0; i < allJobsSize; i++){
                     char* s[20];
                     if(job_is_completed(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", i, cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (i+1), cycle->commandinfo, (int) cycle->pgid);
                     }else if(job_is_stopped(cycle)){
                         sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", i, cycle->commandinfo, (int) cycle->pgid);
                     }
@@ -212,6 +212,7 @@ int main()
         //give new jobs gpid's (the terminal here)
         while(i->next != NULL){
             i->pgid = getpid();
+            i = i->next;
         }
         if (i->next == NULL){
             i->pgid = getpid();
@@ -222,7 +223,7 @@ int main()
         process_t* procCheck;
         jobCheck = j;
         while(jobCheck->next!=NULL){
-            printf("jobs next not NULL\n");
+            //printf("jobs next not NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
                 //printf("proc next not NULL\n");
@@ -232,7 +233,7 @@ int main()
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
-                printf("proc next NULL\n");
+                //printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
@@ -248,17 +249,17 @@ int main()
             jobCheck = jobCheck->next;
         }
         if(jobCheck->next==NULL){
-            printf("jobs next NULL\n");
+            //printf("jobs next NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
-                printf("proc next not NULL\n");
+                //printf("proc next not NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
-                printf("proc next NULL\n");
+                //printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
