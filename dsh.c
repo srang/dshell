@@ -25,7 +25,7 @@ void new_child(job_t *j, process_t *p, bool fg)
          /* Put the process into the process group and give the process
           * group the terminal, if appropriate.  This has to be done both by
           * the dsh and in the individual child processes because of
-          * potential race conditions.  
+          * potential race conditions.
           * */
 
          p->pid = getpid();
@@ -40,17 +40,17 @@ void new_child(job_t *j, process_t *p, bool fg)
          signal(SIGTTOU, SIG_DFL);
 }
 
-/* Spawning a process with job control. fg is true if the 
- * newly-created process is to be placed in the foreground. 
- * (This implicitly puts the calling process in the background, 
- * so watch out for tty I/O after doing this.) pgid is -1 to 
- * create a new job, in which case the returned pid is also the 
- * pgid of the new job.  Else pgid specifies an existing job's 
- * pgid: this feature is used to start the second or 
+/* Spawning a process with job control. fg is true if the
+ * newly-created process is to be placed in the foreground.
+ * (This implicitly puts the calling process in the background,
+ * so watch out for tty I/O after doing this.) pgid is -1 to
+ * create a new job, in which case the returned pid is also the
+ * pgid of the new job.  Else pgid specifies an existing job's
+ * pgid: this feature is used to start the second or
  * subsequent processes in a pipeline.
  * */
 
-void spawn_job(job_t *j, bool fg) 
+void spawn_job(job_t *j, bool fg)
 {
 
 	pid_t pid;
@@ -60,7 +60,7 @@ void spawn_job(job_t *j, bool fg)
 
 	  /* YOUR CODE HERE? */
 	  /* Builtin commands are already taken care earlier */
-	  
+
 	  switch (pid = fork()) {
 
           case -1: /* fork failure */
@@ -68,9 +68,9 @@ void spawn_job(job_t *j, bool fg)
             exit(EXIT_FAILURE);
 
           case 0: /* child process  */
-            p->pid = getpid();	    
+            p->pid = getpid();
             new_child(j, p, fg);
-            
+
 	    /* YOUR CODE HERE?  Child-side code for new process. */
             perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
@@ -91,19 +91,19 @@ void spawn_job(job_t *j, bool fg)
 }
 
 /* Sends SIGCONT signal to wake up the blocked job */
-void continue_job(job_t *j) 
+void continue_job(job_t *j)
 {
      if(kill(-j->pgid, SIGCONT) < 0)
           perror("kill(SIGCONT)");
 }
 
 
-/* 
+/*
  * builtin_cmd - If the user has typed a built-in command then execute
- * it immediately.  
+ * it immediately.
  */
-bool builtin_cmd(job_t *last_job, int argc, char **argv) 
-{ 
+bool builtin_cmd(job_t *last_job, int argc, char **argv)
+{
 
 	    /* check whether the cmd is a built in command
         */
@@ -141,6 +141,14 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
         }
 	else if (!strcmp("cd", argv[0])) {
             /* Your code here */
+            char* path = argv[1];
+            int ret = chdir(path);
+            // for debugging purposes
+            if (ret == 0) {
+                system("ls");
+            } else {
+                printf("Invalid Path\n");
+            }
             last_job->first_process->completed = true;
             last_job->first_process->status = 0;
             return true;
@@ -161,7 +169,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 }
 
 /* Build prompt messaage */
-char* promptmsg() 
+char* promptmsg()
 {
     /* Modify this to include pid */
     char* s[20];
@@ -169,7 +177,7 @@ char* promptmsg()
     return s;
 }
 
-int main() 
+int main()
 {
 
 	init_dsh();
@@ -200,7 +208,7 @@ int main()
             /* spawn_job(j,false) */
         job_t *i;
         i = j;
-        
+
         //give new jobs gpid's (the terminal here)
         while(i->next != NULL){
             i->pgid = getpid();
@@ -208,7 +216,7 @@ int main()
         if (i->next == NULL){
             i->pgid = getpid();
         }
-        
+
         //read command line here
         job_t* jobCheck;
         process_t* procCheck;
