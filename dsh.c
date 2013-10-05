@@ -111,6 +111,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 	}
         else if (!strcmp("jobs", argv[0])) {
             /* Your code here */
+            print_job(last_job);
             return true;
         }
 	else if (!strcmp("cd", argv[0])) {
@@ -153,7 +154,7 @@ int main()
 
         /* Only for debugging purposes to show parser output; turn off in the
          * final code */
-        if(PRINT_INFO) print_job(j);
+        //if(PRINT_INFO) print_job(j);
 
         /* Your code goes here */
         /* You need to loop through jobs list since a command line can contain ;*/
@@ -163,35 +164,35 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
-        while(j->next!=NULL){
-            while(j->first_process->next != NULL){
-                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
-                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
-                }else{
-                        spawn_job(j, !(j->bg));
+        job_t* jobCheck;
+        process_t* procCheck;
+        jobCheck = j;
+        while(jobCheck->next!=NULL){
+            procCheck = jobCheck->first_process;
+            while(procCheck->next != NULL){
+                if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
+                        spawn_job(jobCheck, !(jobCheck->bg));
+                }
+                procCheck = procCheck->next;
+            }
+            if(procCheck->next == NULL){
+                if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
+                    spawn_job(jobCheck, !(jobCheck->bg));
                 }
             }
-            if(j->first_process->next == NULL){
-                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
-                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
-                }else{
-                    spawn_job(j, !(j->bg));
-                }
-            }
+            jobCheck = jobCheck->next;
         }
-        if(j->next==NULL){
-            while(j->first_process->next != NULL){
-                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
-                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
-                }else{
-                    spawn_job(j, !(j->bg));
+        if(jobCheck->next==NULL){
+            procCheck = jobCheck->first_process;
+            while(procCheck->next != NULL){
+                if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
+                    spawn_job(jobCheck, !(jobCheck->bg));
                 }
+                procCheck = procCheck->next;
             }
-            if(j->first_process->next == NULL){
-                if(builtin_cmd(j,j->first_process->argc, j->first_process->argv)){
-                    builtin_cmd(j,j->first_process->argc, j->first_process->argv);
-                }else{
-                    spawn_job(j, !(j->bg));
+            if(procCheck->next == NULL){
+                if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
+                    spawn_job(jobCheck, !(jobCheck->bg));
                 }
             }
         }
