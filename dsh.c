@@ -3,6 +3,9 @@
 void seize_tty(pid_t callingprocess_pgid); /* Grab control of the terminal for the calling process pgid.  */
 void continue_job(job_t *j); /* resume a stopped job */
 void spawn_job(job_t *j, bool fg); /* spawn a new job */
+job_t* allJobs; // global list of all called jobs
+job_t* endJobs; // pointer to the end of the jobs list
+int allJobsSize; // for keeping track of its length
 
 /* Sets the process group id for a given job and process */
 int set_child_pgid(job_t *j, process_t *p)
@@ -100,28 +103,59 @@ void continue_job(job_t *j)
  * it immediately.  
  */
 bool builtin_cmd(job_t *last_job, int argc, char **argv) 
-{
+{ 
 
 	    /* check whether the cmd is a built in command
         */
+        /* Apparently these cannot be piped (from dsh example) so they should always be the irst process of the job for completion updating purposes */
         if (!strcmp(argv[0], "quit")) {
             /* Your code here */
             exit(EXIT_SUCCESS);
+            last_job->first_process->completed = true;
+            last_job->first_process->status = 0;
             return true;
 	}
         else if (!strcmp("jobs", argv[0])) {
             /* Your code here */
-            print_job(last_job);
+            /* all previously completed jobs */
+            if(allJobs == NULL){
+                printf("No Jobs have been executed yet\n");
+            }else{
+                job_t *cycle;
+                cycle = allJobs;
+                int i;
+                for(i = 0; i < allJobsSize; i++){
+                    char* s[20];
+                    if(job_is_completed(cycle)){
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", i, cycle->commandinfo, (int) cycle->pgid);
+                    }else if(job_is_stopped(cycle)){
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", i, cycle->commandinfo, (int) cycle->pgid);
+                    }
+                    printf(s);
+                    cycle = cycle->next;
+                }
+            }
+            last_job->first_process->completed = true;
+            last_job->first_process->status = 0;
             return true;
         }
 	else if (!strcmp("cd", argv[0])) {
             /* Your code here */
+            last_job->first_process->completed = true;
+            last_job->first_process->status = 0;
+            return true;
         }
         else if (!strcmp("bg", argv[0])) {
             /* Your code here */
+            last_job->first_process->completed = true;
+            last_job->first_process->status = 0;
+            return true;
         }
         else if (!strcmp("fg", argv[0])) {
             /* Your code here */
+            last_job->first_process->completed = true;
+            last_job->first_process->status = 0;
+            return true;
         }
         return false;       /* not a builtin command */
 }
@@ -164,21 +198,23 @@ int main()
             /* spawn_job(j,true) */
             /* else */
             /* spawn_job(j,false) */
-        
-        //give jobs in j gpids (not different from terminal right now)
         job_t *i;
         i = j;
+        
+        //give new jobs gpid's (the terminal here)
         while(i->next != NULL){
             i->pgid = getpid();
         }
         if (i->next == NULL){
             i->pgid = getpid();
         }
+        
+        //read command line here
         job_t* jobCheck;
         process_t* procCheck;
         jobCheck = j;
         while(jobCheck->next!=NULL){
-            //printf("jobs next not NULL\n");
+            printf("jobs next not NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
                 //printf("proc next not NULL\n");
@@ -188,28 +224,44 @@ int main()
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
-                //printf("proc next NULL\n");
+                printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
+                if(allJobs == NULL){
+                    allJobs = jobCheck;
+                    endJobs = allJobs;
+                }else{
+                    endJobs->next = jobCheck;
+                    endJobs = endJobs->next; //at the end of a job after last process, add that job to allJobs
+                }
+                allJobsSize++;
             }
             jobCheck = jobCheck->next;
         }
         if(jobCheck->next==NULL){
-            //printf("jobs next NULL\n");
+            printf("jobs next NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
-                //printf("proc next not NULL\n");
+                printf("proc next not NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
-                //printf("proc next NULL\n");
+                printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
+                if(allJobs == NULL){
+                    allJobs = jobCheck;
+                    endJobs = allJobs;
+                }else{
+                    endJobs->next = jobCheck;
+                    endJobs = endJobs->next; //at the end of a job after last process, add that job to allJobs
+                }
+                allJobsSize++;
             }
         }
     }
