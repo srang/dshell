@@ -34,7 +34,7 @@ void new_child(job_t *j, process_t *p, bool fg)
          set_child_pgid(j, p);
 
          if(fg) // if fg is set
-		seize_tty(j->pgid); // assign the terminal
+			seize_tty(j->pgid); // assign the terminal
 
          /* Set the handling for job control signals back to the default. */
          signal(SIGTTOU, SIG_DFL);
@@ -58,6 +58,8 @@ void spawn_job(job_t *j, bool fg)
 
 	for(p = j->first_process; p; p = p->next) {	
 		/* Builtin commands are already taken care earlier */
+		int fds[2];
+		pipe(fds);
 		switch (pid = fork()) {
 			 int status;
           case -1: /* fork failure */
@@ -65,24 +67,30 @@ void spawn_job(job_t *j, bool fg)
             exit(EXIT_FAILURE);
 
           case 0: /* child process  */
-				printf("Child: %d; command: %d\n", getpid(), p->argv[0]);
+				printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
             p->pid = getpid();
             new_child(j, p, fg);
+				dup2(fds[0],0);
+				close(fds[1]);
 				execve(p->argv[0], p->argv,0);
             perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
             break;    /* NOT REACHED */
 
           default: /* parent */
-            /* establish child process group */
-            p->pid = pid;
-            set_child_pgid(j, p);
+ 				/* establish child process group */
+				printf("Parent: %d; PID set to %d\n", getpid(), pid);
+				dup2(fds[1],1);
+				close(fds[0]);
 				waitpid(pid, &status, 0);
-				printf("Parent: %d\n", pid);
+		   	p->pid = pid;
+            set_child_pgid(j, p);
+				printf("Maybe success");
+            p->status = 0;
+            p->completed = true;
           }
 
-            /* YOUR CODE HERE?  Parent-side code for new job.*/
-	    seize_tty(getpid()); // assign the terminal back to dsh
+	   seize_tty(getpid()); // assign the terminal back to dsh
 
 	}
 }
@@ -116,20 +124,30 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             /* Your code here */
             /* all previously completed jobs */
             if(allJobs == NULL){
-                printf("No Jobs have been executed yet\n");
+                printf("No jobs in list\n");
             }else{
                 job_t *cycle;
                 cycle = allJobs;
                 int i;
+                int listSize;
+                listSize = 0;
                 for(i = 0; i < allJobsSize; i++){
                     char* s[20];
                     if(job_is_completed(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (i+1), cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
+                        if(allJobsSize == 1){
+                            allJobs = NULL;
+                        }else{
+                            delete_job(allJobs, cycle);
+                        }
+                        allJobsSize  -= 1;
+                        i -= 1;
                     }else if(job_is_stopped(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", i, cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
                     }
                     printf(s);
                     cycle = cycle->next;
+                    listSize++;
                 }
             }
             last_job->first_process->completed = true;
