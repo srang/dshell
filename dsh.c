@@ -71,7 +71,6 @@ void spawn_job(job_t *j, bool fg)
             p->pid = getpid();
             new_child(j, p, fg);
 				dup2(fds[0],0);
-				close(fds[1]);
 				execve(p->argv[0], p->argv,0);
             perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
@@ -80,14 +79,12 @@ void spawn_job(job_t *j, bool fg)
           default: /* parent */
  				/* establish child process group */
 				printf("Parent: %d; PID set to %d\n", getpid(), pid);
-				dup2(fds[1],1);
-				close(fds[0]);
 				waitpid(pid, &status, 0);
 		   	p->pid = pid;
             set_child_pgid(j, p);
-				printf("Maybe success");
             p->status = 0;
             p->completed = true;
+				break;
           }
 
 	   seize_tty(getpid()); // assign the terminal back to dsh
