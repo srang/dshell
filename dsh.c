@@ -34,7 +34,7 @@ void new_child(job_t *j, process_t *p, bool fg)
          set_child_pgid(j, p);
 
          if(fg) // if fg is set
-		seize_tty(j->pgid); // assign the terminal
+			seize_tty(j->pgid); // assign the terminal
 
          /* Set the handling for job control signals back to the default. */
          signal(SIGTTOU, SIG_DFL);
@@ -56,36 +56,40 @@ void spawn_job(job_t *j, bool fg)
 	pid_t pid;
 	process_t *p;
 
-	for(p = j->first_process; p; p = p->next) {
-
-
-	  /* Builtin commands are already taken care earlier */
-	  switch (pid = fork()) {
+	for(p = j->first_process; p; p = p->next) {	
+		/* Builtin commands are already taken care earlier */
+		int fds[2];
+		pipe(fds);
+		switch (pid = fork()) {
 			 int status;
           case -1: /* fork failure */
             perror("fork");
             exit(EXIT_FAILURE);
 
           case 0: /* child process  */
+				printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
             p->pid = getpid();
             new_child(j, p, fg);
+				dup2(fds[0],0);
+				close(fds[1]);
 				execve(p->argv[0], p->argv,0);
             perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
             break;    /* NOT REACHED */
 
           default: /* parent */
-            /* establish child process group */
-            p->pid = pid;
-            set_child_pgid(j, p);
+ 				/* establish child process group */
+				printf("Parent: %d; PID set to %d\n", getpid(), pid);
+				dup2(fds[1],1);
+				close(fds[0]);
 				waitpid(pid, &status, 0);
-              p->status = 0;
-              p->completed = true;
-            /* YOUR CODE HERE?  Parent-side code for new process.  */
-
+		   	p->pid = pid;
+            set_child_pgid(j, p);
+				printf("Maybe success");
+            p->status = 0;
+            p->completed = true;
           }
 
-            /* YOUR CODE HERE?  Parent-side code for new job.*/
 	   seize_tty(getpid()); // assign the terminal back to dsh
 
 	}
@@ -108,7 +112,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 
 	    /* check whether the cmd is a built in command
         */
-        /* Apparently these cannot be piped (from dsh example) so they should always be the irst process of the job for completion updating purposes */
+        /* Apparently these cannot be piped (from dsh example) so they should always be the first process of the job for completion updating purposes */
         if (!strcmp(argv[0], "quit")) {
             /* Your code here */
             exit(EXIT_SUCCESS);
