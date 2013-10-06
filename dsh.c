@@ -79,12 +79,14 @@ void spawn_job(job_t *j, bool fg)
             p->pid = pid;
             set_child_pgid(j, p);
 				waitpid(pid, &status, 0);
+              p->status = 0;
+              p->completed = true;
             /* YOUR CODE HERE?  Parent-side code for new process.  */
 
           }
 
             /* YOUR CODE HERE?  Parent-side code for new job.*/
-	   // seize_tty(getpid()); // assign the terminal back to dsh
+	   seize_tty(getpid()); // assign the terminal back to dsh
 
 	}
 }
@@ -118,20 +120,30 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             /* Your code here */
             /* all previously completed jobs */
             if(allJobs == NULL){
-                printf("No Jobs have been executed yet\n");
+                printf("No jobs in list\n");
             }else{
                 job_t *cycle;
                 cycle = allJobs;
                 int i;
+                int listSize;
+                listSize = 0;
                 for(i = 0; i < allJobsSize; i++){
                     char* s[20];
                     if(job_is_completed(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (i+1), cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
+                        if(allJobsSize == 1){
+                            allJobs = NULL;
+                        }else{
+                            delete_job(allJobs, cycle);
+                        }
+                        allJobsSize  -= 1;
+                        i -= 1;
                     }else if(job_is_stopped(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", i, cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
                     }
                     printf(s);
                     cycle = cycle->next;
+                    listSize++;
                 }
             }
             last_job->first_process->completed = true;
