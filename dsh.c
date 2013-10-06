@@ -130,7 +130,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
                 for(i = 0; i < allJobsSize; i++){
                     char* s[20];
                     if(job_is_completed(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (listSize+1), cycle->commandinfo, (int) cycle->first_process->pid);
                         if(allJobsSize == 1){
                             allJobs = NULL;
                         }else{
@@ -139,7 +139,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
                         allJobsSize  -= 1;
                         i -= 1;
                     }else if(job_is_stopped(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", (listSize+1), cycle->commandinfo, (int) cycle->first_process->pid);
                     }
                     printf(s);
                     cycle = cycle->next;
