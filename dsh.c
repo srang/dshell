@@ -61,7 +61,7 @@ void spawn_job(job_t *j, bool fg)
 
 	  /* Builtin commands are already taken care earlier */
 	  switch (pid = fork()) {
-
+			 int status;
           case -1: /* fork failure */
             perror("fork");
             exit(EXIT_FAILURE);
@@ -69,7 +69,7 @@ void spawn_job(job_t *j, bool fg)
           case 0: /* child process  */
             p->pid = getpid();
             new_child(j, p, fg);
-				execv(p->argv[0], p->argv[1]);
+				execve(p->argv[0], p->argv,0);
             perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
             break;    /* NOT REACHED */
@@ -78,12 +78,13 @@ void spawn_job(job_t *j, bool fg)
             /* establish child process group */
             p->pid = pid;
             set_child_pgid(j, p);
-
+				waitpid(pid, &status, 0);
             /* YOUR CODE HERE?  Parent-side code for new process.  */
+
           }
 
             /* YOUR CODE HERE?  Parent-side code for new job.*/
-	    seize_tty(getpid()); // assign the terminal back to dsh
+	   // seize_tty(getpid()); // assign the terminal back to dsh
 
 	}
 }
