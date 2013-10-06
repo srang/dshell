@@ -59,38 +59,42 @@ void spawn_job(job_t *j, bool fg)
 	for(p = j->first_process; p; p = p->next) {	
 		/* Builtin commands are already taken care earlier */
 		int fds[2];
-		pipe(fds);
+		printf("%d\n",p->pid);
+		if(p->next != NULL) {
+			pipe(fds);
+		}
 		switch (pid = fork()) {
 			 int status;
           case -1: /* fork failure */
             perror("fork");
             exit(EXIT_FAILURE);
+				break;
 
-          case 0: /* child process  */
-				printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
+          case 0: /* child process */
+				//printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
             p->pid = getpid();
             new_child(j, p, fg);
+				dup2(fds[0],0);
 				dup2(fds[1],1);
-				close(fds[0]);
 				execve(p->argv[0], p->argv,0);
-            perror("New child should have done an exec");
-            exit(EXIT_FAILURE);  /* NOT REACHED */
+         	perror("New child should have done an exec");
+         	exit(EXIT_FAILURE);  /* NOT REACHED */
             break;    /* NOT REACHED */
 
           default: /* parent */
  				/* establish child process group */
-				printf("Parent: %d; PID set to %d\n", getpid(), pid);
-				dup2(fds[0],0);
+				//printf("Parent: %d; PID set to %d\n", getpid(), pid);
+				waitpid(pid, &status, 0);
 				close(fds[0]);
-				//waitpid(pid, &status, 0);
+				close(fds[1]);
 		   	p->pid = pid;
             set_child_pgid(j, p);
             p->status = 0;
             p->completed = true;
 				break;
          }
-		if(j->pgid==p->pid){
-			printf("TTY");
+		if(p->next != NULL){
+			printf("TTY\n");
 	   	seize_tty(getpid()); // assign the terminal back to dsh
 		}
 	}
@@ -156,6 +160,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             return true;
         }
 		  else if (!strcmp("cd", argv[0])) {
+			   exit(1);
             /* Your code here */
             char* path = argv[1];
             int ret = chdir(path);
