@@ -158,12 +158,6 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             /* Your code here */
             char* path = argv[1];
             int ret = chdir(path);
-            // for debugging purposes
-            if (ret == 0) {
-                system("ls");
-            } else {
-                printf("Invalid Path\n");
-            }
             last_job->first_process->completed = true;
             last_job->first_process->status = 0;
             return true;
