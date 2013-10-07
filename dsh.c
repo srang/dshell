@@ -194,6 +194,27 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             last_job->first_process->status = 0;
             return true;
         }
+		  
+		  else if (!strcmp(".c", &((argv[0])[strlen(argv[0]) - 2]))){/* compares last two characters of argument */
+		  		int status = fork();
+				switch (status){
+					case -1:
+						perror("fork error");
+						exit(EXIT_FAILURE);
+						break;
+					case 0:
+						execl("/usr/bin/gcc", "gcc", argv[0], "-o", "run_it", NULL);
+						perror("New child should have done an exec");
+         			exit(EXIT_FAILURE);  
+           			break;   
+					default:
+						wait(NULL);
+						execl("./run_it", NULL);
+						perror("New child should have done an exec");
+         			exit(EXIT_FAILURE);  
+				}
+
+		  }
         return false;       /* not a builtin command */
 }
 
