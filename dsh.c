@@ -13,7 +13,6 @@ int allJobsSize; // for keeping track of its length
 /* Sets the process group id for a given job and process */
 int set_child_pgid(job_t *j, process_t *p)
 {
-	printf("%d",j->pgid);
 if (j->pgid < 0) /* first child: use its pid for job pgid */
         j->pgid = p->pid;
     return(setpgid(p->pid,j->pgid));
@@ -83,10 +82,6 @@ void spawn_job(job_t *j, bool fg)
 		if(p != j->first_process) {
 			pipe(fds);
 		}
-            //dup2(store[1], fds[1]);
-        //else
-            //dup2(0, fds[0]);
-
 		switch (pid = fork()) {
 			 int status;
           case -1: /* fork failure */
@@ -112,20 +107,24 @@ void spawn_job(job_t *j, bool fg)
                     dup2(new_in, 0);
                     close(new_in);
                 }*/
-
-				if(p == j->first_process) {
-					dup2(WR,final_out_fds);
-				}
-				if(p->next != NULL) {
-					dup2(fds[RD],prev_fds);
-				}
-				close(fds[RD]);
-				if(j->first_process != p && p->next != NULL){/*interior process: sends output to buffer*/
-					dup2(RD, prev_fds);
-					dup2(fds[WR],WR);
-				} else if(p->next == NULL){/*final process: maps output back to parent output*/
-					dup2(final_out_fds,WR);
-				}
+				if(j->first_process == p) { /* first process */
+					dup2(WR,final_out_fds); /* stores final output */
+					dup2(fds[RD],prev_fds); /* stores pipe out */
+					if(p->next != NULL) {
+						dup2(fds[WR],WR);
+						close(fds[WR]);
+					}	
+				} else { /* interior process: sends output to buffer */
+					dup2(prev_fds,RD); /* closes RD */
+					dup2(fds[WR],WR); /* closes WR */
+					close(fds[WR]);
+					dup2(fds[RD],prev_fds); /* stores pipe out */
+				}//FALLS THROUGH ON PURPOSE
+				if(p->next == NULL){ /* final process: maps output back to parent output */
+					dup2(final_out_fds,WR); /* closes WR */
+					close(final_out_fds);
+				} 
+				
 				execve(p->argv[0], p->argv,0);
          	perror("New child should have done an exec");
          	exit(EXIT_FAILURE);  /* NOT REACHED */
@@ -135,8 +134,8 @@ void spawn_job(job_t *j, bool fg)
  				/* establish child process group */
 				printf("Parent: %d; PID set to %d\n", getpid(), pid);
 				close(fds[RD]);
-				waitpid(pid, &status, 0);
 				close(fds[WR]);
+				waitpid(pid, &status, 0);
 		   	p->pid = pid;
             set_child_pgid(j, p);
             p->status = 0;
@@ -155,7 +154,6 @@ void spawn_job(job_t *j, bool fg)
         }*/
 		if(p->next == NULL){
 	   	seize_tty(getpid()); // assign the terminal back to dsh
-		}
 	}
 }
 
@@ -178,14 +176,12 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
         */
         /* Apparently these cannot be piped (from dsh example) so they should always be the first process of the job for completion updating purposes */
         if (!strcmp(argv[0], "quit")) {
-            /* Your code here */
             exit(EXIT_SUCCESS);
             last_job->first_process->completed = true;
             last_job->first_process->status = 0;
             return true;
 		  }
         else if (!strcmp("jobs", argv[0])) {
-            /* Your code here */
             /* all previously completed jobs */
             if(allJobs == NULL){
                 printf("No jobs in list\n");
@@ -272,14 +268,6 @@ int main()
          * final code */
         //if(PRINT_INFO) print_job(j);
 
-        /* Your code goes here */
-        /* You need to loop through jobs list since a command line can contain ;*/
-        /* Check for built-in commands */
-        /* If not built-in */
-            /* If job j runs in foreground */
-            /* spawn_job(j,true) */
-            /* else */
-            /* spawn_job(j,false) */
         job_t *i;
         i = j;
         process_t *n;
