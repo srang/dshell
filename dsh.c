@@ -56,10 +56,17 @@ void spawn_job(job_t *j, bool fg)
 	pid_t pid;
 	process_t *p;
 
-	for(p = j->first_process; p; p = p->next) {	
+    int store[2];
+    int fds[2];
+    for(p = j->first_process; p; p = p->next) {
 		/* Builtin commands are already taken care earlier */
-		int fds[2];
-		pipe(fds);
+        if(p != j->first_process){
+            pipe(fds);
+            dup2(store[1], fds[1]);
+        }
+        else{
+            dup2(0, fds[0]);
+        }
 		switch (pid = fork()) {
 			 int status;
           case -1: /* fork failure */
@@ -69,10 +76,13 @@ void spawn_job(job_t *j, bool fg)
           case 0: /* child process  */
 				printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
             p->pid = getpid();
+                printf("before new child");
             new_child(j, p, fg);
-				dup2(fds[1],1);
-				close(fds[0]);
-				execve(p->argv[0], p->argv,0);
+                printf("still working");
+				//if(p != j->first_process){
+                //}
+                dup2(1, store[1]);
+				execve(p->argv[0], p->argv, fds[0]);
             perror("New child should have done an exec");
             exit(EXIT_FAILURE);  /* NOT REACHED */
             break;    /* NOT REACHED */
@@ -80,17 +90,17 @@ void spawn_job(job_t *j, bool fg)
           default: /* parent */
  				/* establish child process group */
 				printf("Parent: %d; PID set to %d\n", getpid(), pid);
-				dup2(fds[0],0);
-				close(fds[0]);
-				//waitpid(pid, &status, 0);
-		   	p->pid = pid;
+				waitpid(pid, &status, fds[0]);
+                //close(fds[0]);
+                //close(fds[1]);
+            p->pid = pid;
             set_child_pgid(j, p);
             p->status = 0;
             p->completed = true;
 				break;
          }
-		if(j->pgid==p->pid){
-			printf("TTY");
+		if(p->next == NULL){
+			printf("TTY\n");
 	   	seize_tty(getpid()); // assign the terminal back to dsh
 		}
 	}
@@ -218,13 +228,30 @@ int main()
             /* spawn_job(j,false) */
         job_t *i;
         i = j;
+        process_t *n;
 
         //give new jobs gpid's (the terminal here)
         while(i->next != NULL){
+            n = i->first_process;
+            while(n->next !=NULL){
+                n->pid = getpid();
+                n = n->next;
+            }
+            if(n->next == NULL){
+                n->pid = getpid();
+            }
             i->pgid = getpid();
             i = i->next;
         }
         if (i->next == NULL){
+            n = i->first_process;
+            while(n->next != NULL){
+                n->pid = getpid();
+                n = n->next;
+            }
+            if(n->next ==NULL){
+                n->pid = getpid();
+            }
             i->pgid = getpid();
         }
 
