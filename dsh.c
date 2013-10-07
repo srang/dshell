@@ -7,10 +7,14 @@ job_t* allJobs; // global list of all called jobs
 job_t* endJobs; // pointer to the end of the jobs list
 int allJobsSize; // for keeping track of its length
 
+#define RD 0
+#define WR 1
+
 /* Sets the process group id for a given job and process */
 int set_child_pgid(job_t *j, process_t *p)
 {
-    if (j->pgid < 0) /* first child: use its pid for job pgid */
+	printf("%d",j->pgid);
+if (j->pgid < 0) /* first child: use its pid for job pgid */
         j->pgid = p->pid;
     return(setpgid(p->pid,j->pgid));
 }
@@ -31,10 +35,10 @@ void new_child(job_t *j, process_t *p, bool fg)
          p->pid = getpid();
 
          /* also establish child process group in child to avoid race (if parent has not done it yet). */
-         set_child_pgid(j, p);
-
-         if(fg) // if fg is set
-			seize_tty(j->pgid); // assign the terminal
+         if(!setpgid(0,j->pgid)){
+            if(fg) // if fg is set
+                seize_tty(j->pgid); // assign the terminal
+        }
 
          /* Set the handling for job control signals back to the default. */
          signal(SIGTTOU, SIG_DFL);
@@ -60,7 +64,6 @@ void spawn_job(job_t *j, bool fg)
 	for(p = j->first_process; p; p = p->next) {	
 		/* Builtin commands are already taken care earlier */
 		int fds[2];
-		printf("%d\n",p->pid);
 		if(p != j->first_process) {
 			pipe(fds);
 		}
@@ -79,13 +82,19 @@ void spawn_job(job_t *j, bool fg)
 				printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
             p->pid = getpid();
             new_child(j, p, fg);
-				if(j->first_process != p && p->next != NULL){/*interior process: sends output to buffer*/
-					close(1);
-					dup2(0, prev_fds);
-				} else if(j->first_process != p && p->next == NULL){/*final process: maps output back to parent output*/
-
+				if(p == j->first_process) {
+					dup2(WR,final_out_fds);
 				}
-				dup2(prev_fds, fds[1]);
+				if(p->next != NULL) {
+					dup2(fds[RD],prev_fds);
+				}
+				close(fds[RD]);
+				if(j->first_process != p && p->next != NULL){/*interior process: sends output to buffer*/
+					dup2(RD, prev_fds);
+					dup2(fds[WR],WR);
+				} else if(p->next == NULL){/*final process: maps output back to parent output*/
+					dup2(final_out_fds,WR);
+				}
 				execve(p->argv[0], p->argv,0);
          	perror("New child should have done an exec");
          	exit(EXIT_FAILURE);  /* NOT REACHED */
@@ -94,10 +103,9 @@ void spawn_job(job_t *j, bool fg)
           default: /* parent */
  				/* establish child process group */
 				printf("Parent: %d; PID set to %d\n", getpid(), pid);
-				close(fds[0]);
-				dup2(fds[1],1);
+				close(fds[RD]);
 				waitpid(pid, &status, 0);
-				close(fds[1]);
+				close(fds[WR]);
 		   	p->pid = pid;
             set_child_pgid(j, p);
             p->status = 0;
@@ -105,7 +113,6 @@ void spawn_job(job_t *j, bool fg)
 				break;
          }
 		if(p->next == NULL){
-			printf("TTY\n");
 	   	seize_tty(getpid()); // assign the terminal back to dsh
 		}
 	}
@@ -266,17 +273,14 @@ int main()
         process_t* procCheck;
         jobCheck = j;
         while(jobCheck->next!=NULL){
-            //printf("jobs next not NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
-                //printf("proc next not NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                         spawn_job(jobCheck, !(jobCheck->bg));
                 }
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
-                //printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
@@ -292,17 +296,14 @@ int main()
             jobCheck = jobCheck->next;
         }
         if(jobCheck->next==NULL){
-            //printf("jobs next NULL\n");
             procCheck = jobCheck->first_process;
             while(procCheck->next != NULL){
-                //printf("proc next not NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
                 procCheck = procCheck->next;
             }
             if(procCheck->next == NULL){
-                //printf("proc next NULL\n");
                 if(!(builtin_cmd(jobCheck,procCheck->argc, procCheck->argv))){
                     spawn_job(jobCheck, !(jobCheck->bg));
                 }
