@@ -55,12 +55,13 @@ void spawn_job(job_t *j, bool fg)
 
 	pid_t pid;
 	process_t *p;
-
+	int prev_fds;
+	int final_out_fds;
 	for(p = j->first_process; p; p = p->next) {	
 		/* Builtin commands are already taken care earlier */
 		int fds[2];
 		printf("%d\n",p->pid);
-		if(p->next != NULL) {
+		if((p->next != NULL) && (p != j->first_process) {
 			pipe(fds);
 		}
 		switch (pid = fork()) {
