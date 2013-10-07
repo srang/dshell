@@ -60,7 +60,23 @@ void spawn_job(job_t *j, bool fg)
 	process_t *p;
 	int prev_fds;
 	int final_out_fds;
-	for(p = j->first_process; p; p = p->next) {	
+    // redirection variables
+    int bak;
+    int new;
+
+    //int new_in;
+    //int back_in;
+    bool redirect_out = false;
+    //bool redirect_in = false;
+	for(p = j->first_process; p; p = p->next) {
+
+        // check for stdio redirection
+        if (p->ofile != NULL) {
+            redirect_out = true;
+        }
+        //if (p->ifile != NULL) {
+        //    redirect_in = true;
+        //}
 		/* Builtin commands are already taken care earlier */
 		int fds[2];
 		if(p != j->first_process) {
@@ -77,6 +93,20 @@ void spawn_job(job_t *j, bool fg)
 				printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
             p->pid = getpid();
             new_child(j, p, fg);
+                // redirecting stdout
+                if (redirect_out == true) {
+                    bak = dup(1);
+                    new = open(p->ofile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IRGRP | S_IWOTH | S_IROTH);
+                    dup2(new, 1);
+                    close(new);
+                }
+                // redirecting stdin
+                /*if (redirect_in == true) {
+                    back_in = dup(0);
+                    new_in = open(p->ifile, O_RDONLY);
+                    dup2(new_in, 0);
+                    close(new_in);
+                }*/
 				if(j->first_process == p) { /* first process */
 					dup2(WR,final_out_fds); /* stores final output */
 					dup2(fds[RD],prev_fds); /* stores pipe out */
@@ -112,6 +142,17 @@ void spawn_job(job_t *j, bool fg)
             p->completed = true;
 				break;
          }
+        // return redirection back to standard
+        if(redirect_out == true) {
+            dup2(bak, 1);
+            close(bak);
+        }
+
+        /*if(redirect_in == true) {
+            dup2(back_in, 0);
+            close(back_in);
+        }*/
+		if(p->next == NULL){
 	   	seize_tty(getpid()); // assign the terminal back to dsh
 	}
 }
