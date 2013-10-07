@@ -81,7 +81,8 @@ void spawn_job(job_t *j, bool fg)
         }
 		/* Builtin commands are already taken care earlier */
 		int fds[2];
-		if(p != j->first_process) {
+		//if(p != j->first_process) {
+        if(p->next != NULL) {
 			pipe(fds);
 		}
 		switch (pid = fork()) {
