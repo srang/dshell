@@ -239,7 +239,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
             last_job->first_process->status = 0;
             return true;
         }
-		  
+
 		  else if (!strcmp(".c", &((argv[0])[strlen(argv[0]) - 2]))){/* compares last two characters of argument */
 		  		int status = fork();
 				switch (status){
@@ -250,13 +250,13 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
 					case 0:
 						execl("/usr/bin/gcc", "gcc", argv[0], "-o", "run_it", NULL);
 						perror("New child should have done an exec");
-         			exit(EXIT_FAILURE);  
-           			break;   
+         			exit(EXIT_FAILURE);
+           			break;
 					default:
 						wait(NULL);
 						execl("./run_it", NULL);
 						perror("New child should have done an exec");
-         			exit(EXIT_FAILURE);  
+         			exit(EXIT_FAILURE);
 				}
 
 		  }
@@ -277,6 +277,11 @@ int main()
 
 	init_dsh();
 	DEBUG("Successfully initialized\n");
+    // redirect to error log
+    int error = open("error.log", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IRGRP | S_IWOTH | S_IROTH |
+           S_IWUSR | S_IWGRP );
+    dup2(error, 2);
+    close(error);
 
 	while(1) {
         job_t *j = NULL;
