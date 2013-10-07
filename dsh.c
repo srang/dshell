@@ -61,9 +61,13 @@ void spawn_job(job_t *j, bool fg)
 		/* Builtin commands are already taken care earlier */
 		int fds[2];
 		printf("%d\n",p->pid);
-		if((p->next != NULL) && (p != j->first_process) {
+		if(p != j->first_process) {
 			pipe(fds);
 		}
+            //dup2(store[1], fds[1]);
+        //else
+            //dup2(0, fds[0]);
+        
 		switch (pid = fork()) {
 			 int status;
           case -1: /* fork failure */
@@ -72,11 +76,16 @@ void spawn_job(job_t *j, bool fg)
 				break;
 
           case 0: /* child process */
-				//printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
+				printf("Child: %d; command: %s\n", getpid(), p->argv[0]);
             p->pid = getpid();
             new_child(j, p, fg);
-				dup2(fds[0],0);
-				dup2(fds[1],1);
+				if(j->first_process != p && p->next != NULL){/*interior process: sends output to buffer*/
+					close(1);
+					dup2(0, prev_fds);
+				} else if(j->first_process != p && p->next == NULL){/*final process: maps output back to parent output*/
+
+				}
+				dup2(prev_fds, fds[1]);
 				execve(p->argv[0], p->argv,0);
          	perror("New child should have done an exec");
          	exit(EXIT_FAILURE);  /* NOT REACHED */
@@ -84,9 +93,10 @@ void spawn_job(job_t *j, bool fg)
 
           default: /* parent */
  				/* establish child process group */
-				//printf("Parent: %d; PID set to %d\n", getpid(), pid);
-				waitpid(pid, &status, 0);
+				printf("Parent: %d; PID set to %d\n", getpid(), pid);
 				close(fds[0]);
+				dup2(fds[1],1);
+				waitpid(pid, &status, 0);
 				close(fds[1]);
 		   	p->pid = pid;
             set_child_pgid(j, p);
@@ -94,7 +104,7 @@ void spawn_job(job_t *j, bool fg)
             p->completed = true;
 				break;
          }
-		if(p->next != NULL){
+		if(p->next == NULL){
 			printf("TTY\n");
 	   	seize_tty(getpid()); // assign the terminal back to dsh
 		}
@@ -140,7 +150,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
                 for(i = 0; i < allJobsSize; i++){
                     char* s[20];
                     if(job_is_completed(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: COMPLETE\n", (listSize+1), cycle->commandinfo, (int) cycle->first_process->pid);
                         if(allJobsSize == 1){
                             allJobs = NULL;
                         }else{
@@ -149,7 +159,7 @@ bool builtin_cmd(job_t *last_job, int argc, char **argv)
                         allJobsSize  -= 1;
                         i -= 1;
                     }else if(job_is_stopped(cycle)){
-                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", (listSize+1), cycle->commandinfo, (int) cycle->pgid);
+                        sprintf(s, "%d. %s (PID: %d)\n STATUS: STOPPED\n", (listSize+1), cycle->commandinfo, (int) cycle->first_process->pid);
                     }
                     printf(s);
                     cycle = cycle->next;
@@ -224,13 +234,30 @@ int main()
             /* spawn_job(j,false) */
         job_t *i;
         i = j;
+        process_t *n;
 
         //give new jobs gpid's (the terminal here)
         while(i->next != NULL){
+            n = i->first_process;
+            while(n->next !=NULL){
+                n->pid = getpid();
+                n = n->next;
+            }
+            if(n->next == NULL){
+                n->pid = getpid();
+            }
             i->pgid = getpid();
             i = i->next;
         }
         if (i->next == NULL){
+            n = i->first_process;
+            while(n->next != NULL){
+                n->pid = getpid();
+                n = n->next;
+            }
+            if(n->next ==NULL){
+                n->pid = getpid();
+            }
             i->pgid = getpid();
         }
 
